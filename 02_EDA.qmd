@@ -1,0 +1,116 @@
+---
+title: Exploratory Data Analysis (EDA)
+subtitle: ""
+# author:
+# - affiliation: Instituto Agroforestal Mediterráneo. Departamento de Ecosistemas Agroforestales.
+#     Universitat Politècnica de València.
+#   email: algarsal@upv.es
+#   name: Alfonso Garmendia
+title-block-banner: true
+date: last-modified
+date-format: iso
+lang: en-EN
+language: 
+  title-block-published: "Last modified"
+code-fold: true
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: body
+    toc-title: Table of contents
+    embed-resources: true
+    self-contained-math: true
+---
+
+```{r setup, include=FALSE}
+library(skimr)
+
+```
+
+## Import data
+
+```{r import_data}
+# dir("data")
+load("data/clean-data.Rdata")
+```
+
+Data are imported from the file *"data/clean-data.Rdata"*. It was created running the script "*01_data-survey-clean-export.qmd*" and has several dataframes: *`r ls()`*. 
+
+See the document [01_data-survey-clean-export.html](01_data-survey-clean-export.html) for a detailed description of the data creation and legend. 
+
+## Exploratory Data Analysis (EDA)
+
+EDA is important to check the structure of the data frame and basic correlations. 
+
+There are some automatic EDA tools [here](https://finnstats.com/index.php/2021/05/04/exploratory-data-analysis/) and [here](https://www.business-science.io/code-tools/2023/01/05/exploratory-dataxray-analysis.html).
+
+## EDA with `skimr` package
+### EDA for *pathog* dataframe
+
+```{r}
+skimr::skim(pathog)
+```
+
+### EDA for *nguy* dataframe
+
+```{r}
+skimr::skim(nguy)
+```
+
+### EDA for *samu* dataframe
+
+```{r}
+skimr::skim(samu)
+```
+
+
+## Correlation funnel
+
+In the figures for correlation funnel we can see the variables ordered from the most correlated to the appearance of symptoms and which values are more with or without them. 
+
+```{r}
+
+library(correlationfunnel)
+library(ggplot2)
+# names(pathog)
+v <- c("species", "inoc_part", "batch",
+  "symptom", "days", "host", "variety",
+  "sample", "location", "province")
+pathog$days <- as.numeric(pathog$days)
+pathog[v] %>% 
+  binarize() %>% 
+  correlate(symptom__0) %>% 
+  plot_correlation_funnel() + 
+  labs(title = "Correlation Funnel for pathog dataframe")
+
+nguy$days <- as.numeric(nguy$days)
+nguy[v] %>% 
+  binarize() %>% 
+  correlate(symptom__0) %>% 
+  plot_correlation_funnel() + 
+  labs(title = "Correlation Funnel for nguy dataframe")
+
+samu$days <- as.numeric(samu$days)
+samu[v] %>% 
+  binarize() %>% 
+  correlate(symptom__0) %>% 
+  plot_correlation_funnel() + 
+  labs(title = "Correlation Funnel for samu dataframe")
+
+
+```
+
+
+# {{< pagebreak >}}
+
+```{r}
+#| eval: !expr file.exists("rmd/ch_reproducibility.qmd")
+#| child: "rmd/ch_reproducibility.qmd"
+
+```
+
+
+
+
+<!-- ## Bibliography -->
