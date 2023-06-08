@@ -301,8 +301,8 @@ tf <- pathog$species == "CLEMENVILLA.MANDARIN" &
   pathog$host %in% c("MANDARIN", "none")
 nguy <- pathog[tf, ]
 tf <- pathog$species == "CLEMENVILLA.MANDARIN" &
-  pathog$host %in% c("MANDARIN")
-samu <- pathog[tf, ]
+  pathog$host == "MANDARIN"
+samu <- pathog[!tf, ]
 
 ### Relevel factors -------------
 tf <- sapply(names(pathog), function(x) "factor" == class(pathog[[x]])[1])
