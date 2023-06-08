@@ -1,0 +1,336 @@
+---
+title: Data survey *Alternaria* strains
+subtitle: ""
+# author:
+# - affiliation: Instituto Agroforestal Mediterráneo. Departamento de Ecosistemas Agroforestales.
+#     Universitat Politècnica de València.
+#   email: algarsal@upv.es
+#   name: Alfonso Garmendia
+title-block-banner: true
+date: last-modified
+date-format: iso
+lang: en-EN
+language: 
+  title-block-published: "Last modified"
+code-fold: true
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: body
+    toc-title: Table of contents
+    embed-resources: true
+    self-contained-math: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)      # tables kable
+library(readxl)     # Read xls files
+library(dplyr)
+library(kableExtra)
+
+```
+
+## Import data
+
+```{r import_data}
+#| results: hide
+#| warning: false
+
+#### Data adress and name -----------------
+dir("data")
+p <- "data/230602 Alternaria 2023_data and strains.xlsx"
+s <- readxl::excel_sheets(p)
+
+#### Read data ----------------------------
+strains <- read_xlsx(p, "STRAINS")
+legend.strain <- read_xlsx(p, "READ", col_names = FALSE)
+pathog <- read_xlsx(p, "PATHOGENICITY")
+legend.pathog <- read_xlsx(p, "READ2", range = "A1:B10", col_names = FALSE)
+symptom <- read_xlsx(p, "READ2", range = "H1:H6")
+
+```
+
+Data are imported from the file: *`r p`*. It has several sheets: *`r s`*. 
+
+One sheet (*READ2*) had two tables, so it needed to fix the ranges. 
+
+## Only one legend
+
+```{r }
+#### Fix legend --------------------------
+legend0 <- rbind(legend.pathog, legend.strain)
+names(legend0) <- c("variable", "description")
+### remove duplicated
+legend0 <- legend0[!duplicated(legend0$variable), ]
+### fix sympthoms
+legend0$description[
+  which(legend0$variable == "SYMPTOM")] <- 
+  paste(legend0$description[
+    which(legend0$variable == "SYMPTOM")],
+    ":", paste(symptom[[1]], collapse = "; "))
+
+symptoms.description <- legend0$description[
+  which(legend0$variable == "SYMPTOM")]
+
+rm(p, s, legend.pathog, legend.strain, symptom)
+
+#### Fix variables names ----------------
+### lower letters
+legend0$variable <- tolower(legend0$variable)
+names(pathog) <- tolower(names(pathog))
+names(strains) <- tolower(names(strains))
+```
+
+All legends were aggregated in only one legend (`legend0`, see @tbl-leg). 
+
+Names of variables were converted to lower letters in data frames and in legend. 
+
+Symptoms scale was aggregated to the description of the variable *symptom*: 
+
+>"*`r symptoms.description`.*"
+
+## Check data structure
+
+### Variable `pathog$code`
+
+```{r}
+#| results: hide
+p <- levels(as.factor(pathog$code))
+s <- levels(as.factor(strains$code))
+
+p[!p %in% s]
+s[!s %in% p]
+
+pns <- p[!p %in% s]
+length(pns)
+
+p1 <- p[grep("AAPC", p)]
+p2 <- p[grep("AAPV", p)]
+for (i in 1:length(p1))
+  pathog$code[pathog$code == p1[i]] <- p2[i]
+
+```
+
+There are `r length(pns)` codes in `pathog` not described in `strains` data frame: `r pns`. 
+
+All of them but "*CONTROL*" were changed in `pathog$code` for: `r p2`
+
+### Variables `species`
+
+```{r}
+ol <- levels(as.factor(pathog$species))
+tf <- pathog$species %in% 
+  c("CLEMENVILL MANDARIN", "CLEMENVILLA MANDARIN")
+pathog$species[tf] <- "CLEMENVILLA.MANDARIN"
+
+```
+
+The original data has some species with several names: `r ol`. 
+
+All names for clementine mandarins have been fixed to "CLEMENVILLA.MANDARIN".
+
+### Variables `batch` and `chamber`
+
+```{r }
+factors <- c("batch", "chamber")
+for (i in factors)
+  pathog[[i]] <- as.factor(pathog[[i]])
+
+lb <- levels(pathog$batch)
+lc <- levels(pathog$chamber)
+
+pathog$chamber <- paste(pathog$batch, 
+  pathog$chamber, sep = ".")
+pathog$chamber <- as.factor(pathog$chamber)
+lc2 <- levels(pathog$chamber)
+
+```
+
+Variables `batch` and `chamber` were converted to factors. 
+
+There are `r length(lb)` batches: `r lb`.
+
+I do not believe there are only `r length(lc)` different chambers in total: `r lc`.
+
+I suppose there are those chambers in each batch, so I converted the chamber codes combining batch and chamber, so the code is unique to each chamber. 
+Once converted there are`r length(lc2)` different chambers in total: `r lc2`.
+
+### Dates
+
+```{r}
+ld <-  levels(as.factor(paste(pathog$date_inoc, pathog$batch, sep = ".")))
+le <-  levels(as.factor(pathog$date_eval))
+
+pathog$days <- pathog$date_eval - pathog$date_inoc
+
+# levels(as.factor(pathog$days))
+```
+
+There are `r length(ld)` dates of inoculation (`date_inoc`) that correspond exactly with the batches (`batch`). 
+
+Surprisingly there are only `r length(le)` dates of evaluation (`date_eval`). So different batches were evaluated at the same date. 
+
+More interesting than actual date of inoculation (`date_inoc`) and date of evaluation (`date_eval`) is the number of days between them. To create this variable (`days`) a subtraction between them was done. 
+
+The number of days between inoculation and evaluation ranges between `r min(pathog$days)` and `r max(pathog$days)`, being more than double in some of them!. 
+
+**¿Why is it so different? ¿Shouldn't be the same for all batches?**
+
+Date of isolation (`isolation`) will not be used in the analysis. 
+
+### Variables `identification` and `observ`
+
+```{r}
+#| results: hide
+all(is.na(pathog$identification))
+all(is.na(pathog$observ))
+
+pathog <- pathog[-which(names(pathog) %in% 
+    c("identification", "observ"))]
+
+```
+
+Both variables `pathog$identification` and `pathog$observ` are empty, so they were deleted. I keep them in legend because they still are in `strains`. 
+
+## Add `strain` variables into `pathog`
+
+```{r}
+# library(dplyr)
+pathog <- left_join(pathog, strains, by = "code")
+```
+
+All `strain` variables were added into `pathog` data frame to use them in the analysis. 
+
+## Variables `host` and `variety`
+
+```{r}
+tf <- pathog$code == "CONTROL"
+pathog$host[tf] <- "none"
+# any(is.na(pathog$host))
+
+```
+
+The empty values in host variable for the "CONTROL" code were filled with "none", so they can be used in the analysis. 
+
+```{r}
+pathog$variety <- paste(pathog$host, pathog$variety, sep = ".")
+# any(is.na(pathog$host))
+```
+
+So, now there are `r length(levels(as.factor(pathog$host)))` different hosts: `r levels(as.factor(pathog$host))`.
+
+Also, there are `r length(levels(as.factor(pathog$variety)))` different hosts: `r levels(as.factor(pathog$variety))`.
+
+## Fill other control NA values
+
+```{r}
+variables <- c('sample', 'location', 
+  'province')
+tf <- pathog$code == "CONTROL"
+
+for (i in variables)
+  pathog[tf, i] <- "none"
+
+## deleted
+deleted <- c("orchard", "identification")
+pathog <- pathog[-c(which(names(pathog) %in% deleted))]
+legend0 <- legend0[!legend0$variable %in% deleted, ]
+
+```
+
+The variable `orchard` can be deleted because it is incomplete and do not add information. 
+
+The variable `identification` has no information and it is also deleted. 
+
+They were also deleted from the legend (`legend0`). 
+
+Empty cells for control samples were filled with "none" for the variables: `r variables`.
+
+## Factor variables
+
+```{r}
+# names(pathog)
+factors <- c("code", "species", "inoc_part", 
+  "batch", "chamber", "host", "variety", 
+  "sample", "location", "province")
+for (i in factors)
+  pathog[[i]] <- as.factor(pathog[[i]])
+
+```
+
+All factor variables were converted to factors: `r factors`.
+
+## Final dataframe and legend
+
+Variables used are described in @tbl-leg and in @tbl-df is the data frame cleaned with all the data. 
+
+```{r tbl-leg}
+#| tbl-cap: Variables in dataframe. 
+
+legend0 %>% 
+  kbl() %>% 
+  kable_classic()
+
+```
+
+
+```{r tbl-df}
+#| tbl-cap: Data frame cleaned with all data.
+
+pathog %>% 
+  kbl() %>% 
+  kable_classic() %>% 
+  column_spec(which(names(pathog) == "observ"), 
+    width_min = "11cm") %>% 
+  scroll_box(width = "100%", height = "400px")
+```
+
+## Split data frames
+
+**Please, check if this is right.**
+
+Lam Nguyen will use the data for the Clemenville species in Clemenville species. 
+
+Mohamed Samu will use the data for the crosses between species and also carob and persimon. 
+
+```{r}
+# levels(pathog$species)
+# levels(pathog$host)
+tf <- pathog$species == "CLEMENVILLA.MANDARIN" &
+  pathog$host %in% c("MANDARIN", "none")
+nguy <- pathog[tf, ]
+tf <- pathog$species == "CLEMENVILLA.MANDARIN" &
+  pathog$host %in% c("MANDARIN")
+samu <- pathog[tf, ]
+
+### Relevel factors -------------
+tf <- sapply(names(pathog), function(x) "factor" == class(pathog[[x]])[1])
+tf <- tf[tf]
+
+for (i in names(tf)) {
+  nguy[[i]] <- droplevels(nguy[[i]])
+  samu[[i]] <- droplevels(samu[[i]])
+}
+
+```
+
+## Export data
+
+```{r}
+save(pathog, nguy, samu, legend0, 
+  file = "data/clean-data.Rdata")
+```
+
+# {{< pagebreak >}}
+
+```{r}
+#| eval: !expr file.exists("rmd/ch_reproducibility.qmd")
+#| child: "rmd/ch_reproducibility.qmd"
+
+```
+
+
+
+
+<!-- ## Bibliography -->
