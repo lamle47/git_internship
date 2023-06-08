@@ -27,10 +27,17 @@ To load the clean data in next scripts you only need to write:
 load("data/clean-data.Rdata")
 ```
 
- ### Exploratory data analysis
- ### Pathogenicity analysis
+### Automatic Exploratory data analysis
+
+*02_EDA.qmd* script does:
+
+- EDA with `skimr` package.
+- Correlation funnel plots. 
+
+
+### Pathogenicity analysis
  
- ## Repositories
+## Repositories
  
  GitHub repository: 
  https://github.com/lamle47/git_internship.git

@@ -1,0 +1,59 @@
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+****
+**Reproducibility** 
+
+Written in [Quarto](https://quarto.org/), using [Rstudio](https://www.rstudio.com/).
+
+```{r}
+### Packages base R ---------- 
+base.packages <- sessionInfo()$basePkgs
+
+### Packages loaded not in base R ----------
+packages.used <- (.packages())[!(.packages()) %in% base.packages]
+
+### Packages version ---------------
+base.package.version <- character()
+# i <- packages.used[1]
+for (i in base.packages) {
+    base.package.version <- c(base.package.version, paste(i, packageVersion(i)))
+}
+package.version <- character()
+# i <- packages.used[1]
+for (i in packages.used) {
+    package.version <- c(package.version, paste(i, packageVersion(i)))
+}
+
+#### Write packages to biblio ----------------------------------------
+if (!file.exists('biblio/packages.csv'))
+  write.csv(packages.used, 'biblio/packages.csv', row.names = FALSE)
+
+if (file.exists("biblio/packages.csv")) {
+  packages <- read.csv("biblio/packages.csv")
+  # packages <- read.csv("../biblio/packages.csv")
+  packages <- packages$x
+  packages <- c(packages, packages.used)
+  packages <- unique(packages)
+  packages <- packages[order(packages)]
+  write.csv(packages, 'biblio/packages.csv', row.names = FALSE)
+}
+
+```
+
+
+- System: 
+`r sessionInfo()$R.version$version.string`
+`r sessionInfo()$platform` 
+`r sessionInfo()$running`
+- Base packages: `r base.package.version`.
+- Other loaded packages: `r package.version`.
+
+&nbsp;
+
+****
