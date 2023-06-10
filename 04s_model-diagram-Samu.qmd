@@ -1,0 +1,75 @@
+---
+title: Model diagram
+subtitle: "Samu"
+# author:
+# - affiliation: Instituto Agroforestal Mediterráneo. Departamento de Ecosistemas Agroforestales.
+#     Universitat Politècnica de València.
+#   email: algarsal@upv.es
+#   name: Alfonso Garmendia
+title-block-banner: true
+date: last-modified
+date-format: iso
+lang: en-EN
+language: 
+  title-block-published: "Last modified"
+code-fold: true
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: body
+    toc-title: Table of contents
+    embed-resources: true
+    self-contained-math: true
+---
+
+```{r import_data, eval=FALSE}
+# dir("data")
+load("data/clean-data.Rdata")
+rm(pathog, nguy)
+```
+
+
+## Variables
+
+The independent variable is the strain (code) and the dependent variable is symptoms. 
+
+Leaves (inoc_part: young - old) or days (from inoculation to evaluation) are variables independent to strain but can affect symptoms. 
+
+Species is a confounder, because it affects both symptoms and the strains used. 
+
+The strain characteristics can be moderators, affected by strain and affecting symptoms. 
+
+Batch should not have an effect. 
+
+See @fig-simple 
+
+```{mermaid}
+%%| label: fig-simple
+%%| fig-cap: "Possible relationships between variables."
+
+flowchart LR
+  St --> Sc(Strain characteristics: \n host, \n variety, \n sample, \n location, \n province.)
+  Sc --> Sy
+  St{strain} ==> Sy{symptoms}
+  Sp(species) --> Sy
+  Sp(species) --> St
+  Le(leaves) --> Sy 
+  Da(Days) --> Sy
+  Ba(batch) -..-> Sy
+```
+
+\
+
+# {{< pagebreak >}}
+
+```{r}
+#| eval: !expr file.exists("rmd/ch_reproducibility.qmd")
+#| child: "rmd/ch_reproducibility.qmd"
+
+```
+
+
+
+
+<!-- ## Bibliography -->

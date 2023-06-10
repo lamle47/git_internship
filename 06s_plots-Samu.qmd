@@ -1,0 +1,242 @@
+---
+title: Plots
+subtitle: "Samu"
+# author:
+# - affiliation: Instituto Agroforestal Mediterráneo. Departamento de Ecosistemas Agroforestales.
+#     Universitat Politècnica de València.
+#   email: algarsal@upv.es
+#   name: Alfonso Garmendia
+title-block-banner: true
+date: last-modified
+date-format: iso
+lang: en-EN
+language: 
+  title-block-published: "Last modified"
+code-fold: true
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: body
+    toc-title: Table of contents
+    embed-resources: true
+    self-contained-math: true
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(dplyr)
+
+```
+
+## Data
+
+```{r import_data}
+# dir("data")
+load("data/clean-data.Rdata")
+rm(pathog, nguy)
+```
+
+Data are imported from the file *"data/clean-data.Rdata"*. It was created running the script "*01_data-survey-clean-export.qmd*" and has several dataframes: *`r ls()`*. 
+
+See the document [01_data-survey-clean-export.html](01_data-survey-clean-export.html) for a detailed description of the data creation and legend. 
+
+See the document [02_EDA](02_EDA.html) for a quick survey of the data. 
+
+In the document [04s_model-diagram-Samu.html](04s_model-diagram-Samu.html) there is a diagram of the model possible relationships to test. 
+
+```{r}
+### Order levels of code to 
+### put "CONTROL" or "none" as the first level
+# levels(samu$location)
+samu$host <- relevel(samu$host, "none")
+samu$code <- relevel(samu$code, "CONTROL")
+```
+
+All factor variables were reordered so control observations are in the first place. 
+
+## Best model
+
+```{r}
+call <- "symptom ~ species * host * province"
+```
+
+After comparing a set of different models, the best fitted model is (see [05s_models-comparison-Samu.html](05s_models-comparison-Samu.html)):
+
+- `r call`
+
+
+```{r fig-ssi}
+#| fig-cap: Effect of the species, host and province on the Alternaria disease symptoms. Error bars stand for standard deviation. Asterics denote significant differences with the control experiment (alpha = 0.05). 
+#| fig-width: 9
+#| column: screen
+
+### Data for plot -------------
+d <- samu %>%
+  group_by(species, host) %>%
+  summarise_at(vars(symptom), 
+    list(mean = mean, sd = sd)) %>% 
+  as.data.frame()
+
+### plot ----------------------
+pd <- position_dodge(0.5)
+ggplot(d, aes(x = host, y = mean, 
+  color = species)) + 
+  geom_errorbar(
+    aes(ymin = mean - sd, ymax = mean + sd), 
+    width = .3, position = pd) +
+  geom_point(size = 2, position = pd) +
+  # geom_text(data = sig, position = pd,
+  #   size = 8,
+  #   aes(y = 4.5, x = code,
+  #     color = inoc_part, label = sig)) +
+  labs(x = "host strain", y = "symptom level mean", 
+    color = "infected species") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 10, 
+    vjust = 1, hjust = 1))  
+
+
+```
+
+Experiment for Persimmon cannot be used because the control (not inoculated) was  with very strong symptoms. This species had strong symptoms in all experiments. It is very sensible to *Alternaria*. 
+
+For the other strains, only the strains obtained from carob tree did cause symptoms in either carob tree and mandarine. 
+
+The effect of carob tree strains on carob tree leaves is always 2, without variation (see @fig-carob).
+
+The effect of carob tree strains in carob tree leaves is always the same two and clearly different from the control.
+
+The effect of carob tree strains in mandarin leaves depends on the strain (see @fig-mand).
+
+```{r}
+tf <- samu$species == "CAROB" & 
+  samu$host %in% c("none", "CAROB TREE")
+d <- samu[tf, ]
+d$symptomTF <- d$symptom > 0
+d$host <- droplevels(d$host)
+### analysis --------
+t1 <- table(d$host, d$symptomTF)
+ch <- fisher.test(t1)
+
+```
+
+
+```{r fig-carob}
+#| fig-cap: !expr paste("Frequencies of symptoms in carob tree leaves for the strains from carob tree, compared with the control. p.value of fisher test is:", format(ch$p.value, digits = 2), ".")
+
+#### Data 
+D <- as.data.frame(t1)
+D$total <-
+  # sums all same names in Var1
+  sapply(D$Var1,
+    function(caseID)
+      sum(subset(D,
+        Var1 == caseID)$Freq))
+D$percent <- round((D$Freq / D$total) * 100, 2)
+D <- D[order(D$Var2, decreasing = TRUE),]
+D <- D[order(D$Var1),]
+
+### plot  -------------
+  ### First plot ####
+  bps <- ggplot(D, aes(x = Var1, y = Freq, fill = Var2)) +
+    geom_bar(stat = "identity", position = "stack") +
+    labs(x = "carob", y = "Frequency")
+  
+  ### Frequencies ####
+  freq = ggplot_build(bps)$data[[1]]
+  freq$y_pos = (freq$ymin + freq$ymax) / 2
+  Dord <- D[order(D$Var2, decreasing = TRUE),]
+  Dord <- Dord[order(Dord$Var1),]
+  
+  bps <- bps +
+    annotate(
+      x = freq$x,
+      y = freq$y_pos,
+      label = D$Freq,
+      geom = "text",
+      size = 5,
+      color = "black"
+    )
+  
+  #### Legend and theme ####
+  bps <- bps +
+    guides(fill = guide_legend(title = "Symptoms"), color = "none") 
+bps
+```
+
+```{r fig-mand}
+#| fig-cap: Effect of carob strains on mandarine leaves. Error bars stand for standard deviation. Asterics denote significant differences with the control experiment (alpha = 0.05). 
+#| fig-width: 9
+#| column: screen
+
+### Data for plot -------------
+tf <- samu$species == "CLEMENVILLA.MANDARIN" & 
+  samu$host %in% c("none", "CAROB TREE")
+
+d0 <- samu[tf, ] 
+d0$code <- droplevels(d0$code)
+d <- d0 %>%
+  group_by(inoc_part, code) %>%
+  summarise_at(vars(symptom), 
+    list(mean = mean, sd = sd)) %>% 
+  as.data.frame()
+
+### Analysis -------------
+aad <- aov(symptom ~ code, 
+  data = d0[d0$inoc_part == "ADULT LEAVES", ])
+ayo <- aov(symptom ~ code, 
+  data = d0[d0$inoc_part == "YOUNG LEAVES", ])
+
+aadt <- as.data.frame(TukeyHSD(aad)$code)
+aadt <- aadt[grep("CONTROL", row.names(aadt)), ]
+aadt$inoc_part <- "ADULT LEAVES"
+aadt$sig <- ""
+aadt$sig[aadt$`p adj` < 0.05] <- "*"
+
+ayot <- as.data.frame(TukeyHSD(ayo)$code)
+ayot <- ayot[grep("CONTROL", row.names(ayot)), ]
+ayot$inoc_part <- "YOUNG LEAVES"
+ayot$sig <- ""
+ayot$sig[ayot$`p adj` < 0.05] <- "*"
+scontrol <- aadt[1, ]
+scontrol$sig <- ""
+s <- rbind(scontrol, aadt)
+s <- rbind(s, scontrol)
+s <- rbind(s, ayot)
+s$code <- rep(levels(d0$code), 2)
+sig <- s[c("code", "inoc_part", "sig")]
+
+### plot ----------------------
+pd <- position_dodge(0.5)
+ggplot(d, aes(x = code, y = mean, 
+  color = inoc_part)) + 
+  geom_errorbar(
+    aes(ymin = mean - sd, ymax = mean + sd), 
+    width = .3, position = pd) +
+  geom_point(size = 2, position = pd) +
+  geom_text(data = sig, position = pd,
+    size = 8,
+    aes(y = 4.5, x = code,
+      color = inoc_part, label = sig)) +
+  labs(x = "code", y = "symptom level mean", 
+    color = "inoculated leaves") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 10, 
+    vjust = 1, hjust = 1))  
+
+
+```
+
+# {{< pagebreak >}}
+
+```{r}
+#| eval: !expr file.exists("rmd/ch_reproducibility.qmd")
+#| child: "rmd/ch_reproducibility.qmd"
+
+```
+
+
+
+
+<!-- ## Bibliography -->

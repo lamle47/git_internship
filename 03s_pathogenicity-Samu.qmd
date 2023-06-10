@@ -1,0 +1,191 @@
+---
+title: Pathogeneity models
+subtitle: "samuen"
+# author:
+# - affiliation: Instituto Agroforestal Mediterráneo. Departamento de Ecosistemas Agroforestales.
+#     Universitat Politècnica de València.
+#   email: algarsal@upv.es
+#   name: Alfonso Garmendia
+title-block-banner: true
+date: last-modified
+date-format: iso
+lang: en-EN
+language: 
+  title-block-published: "Last modified"
+code-fold: true
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: body
+    toc-title: Table of contents
+    embed-resources: true
+    self-contained-math: true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(agricolae)
+```
+
+## Import data
+
+```{r import_data}
+# dir("data")
+load("data/clean-data.Rdata")
+rm(pathog, nguy)
+
+### By species --------
+carob <- samu[samu$species == "CAROB", ]
+manda <- samu[samu$species ==
+    "CLEMENVILLA.MANDARIN", ]
+persi <- samu[samu$species == "PERSIMMON", ]
+
+```
+
+Data are imported from the file *"data/clean-data.Rdata"*. It was created running the script "*01_data-survey-clean-export.qmd*" and has several dataframes: *`r ls()`*. 
+
+See the document [01_data-survey-clean-export.html](01_data-survey-clean-export.html) for a detailed description of the data creation and legend. 
+
+See the document [02_EDA](02_EDA.html) for a quick survey of the data. 
+
+### Strains and species
+
+```{r, eval=FALSE}
+table(samu$code, samu$species)
+```
+
+## Pathogenicity of strains
+
+¿Which strains are pathogenic? 
+
+To test this we order the levels of *code* and do an anova and Tukey post-hoc test but only comparing the Control (without strains) with each strain. 
+
+### On carob leaves
+
+```{r}
+### Order levels of code to put "CONTROL" 
+### or "none" as the first level -----------
+# levels(carob$location)
+carob$code <- relevel(carob$code, "CONTROL")
+
+### Anova ------------------
+asc <- aov(symptom ~ code, data = carob)
+tasc0 <- TukeyHSD(asc)$code
+tasc1 <- tasc0[grep("CONTROL", row.names(tasc0)), ]
+
+atasc0 <- HSD.test(asc, "code")
+
+### KW -----------------
+# kw0 <- agricolae::kruskal(carob$symptom, carob$code)
+
+### Shapiro test residuals -----------
+sh0 <- shapiro.test(asc$residuals)
+```
+
+```{r tbl-tasc1}
+#| tbl-cap: Differences between control and each strain. 
+
+kable(tasc1)
+
+```
+
+```{r fig-tasc0}
+#| fig-cap: Mean pathogenicity of each strain. Different letters for significance (alpha = 0.05).
+
+plot(atasc0, las = 2)
+
+# plot(kw0, las = 2)
+
+```
+
+
+### On mandarine leaves
+
+```{r}
+### Order levels of code to put "CONTROL" 
+### or "none" as the first level -----------
+# levels(manda$location)
+manda$code <- relevel(manda$code, "CONTROL")
+
+### Anova ------------------
+asc <- aov(symptom ~ code, data = manda)
+tasc0 <- TukeyHSD(asc)$code
+tasc1 <- tasc0[grep("CONTROL", row.names(tasc0)), ]
+
+atasc0 <- HSD.test(asc, "code")
+
+### KW -----------------
+# kw0 <- agricolae::kruskal(manda$symptom, manda$code)
+
+### Shapiro test residuals -----------
+sh0 <- shapiro.test(asc$residuals)
+```
+
+```{r tbl-tasc1-m}
+#| tbl-cap: Differences between control and each strain. 
+
+kable(tasc1)
+
+```
+
+```{r fig-tasc0-m}
+#| fig-cap: Mean pathogenicity of each strain. Different letters for significance (alpha = 0.05).
+
+plot(atasc0, las = 2)
+
+# plot(kw0, las = 2)
+
+```
+
+### On persimon leaves
+
+```{r}
+### Order levels of code to put "CONTROL" 
+### or "none" as the first level -----------
+# levels(persi$location)
+persi$code <- relevel(persi$code, "CONTROL")
+
+### Anova ------------------
+asc <- aov(symptom ~ code, data = persi)
+tasc0 <- TukeyHSD(asc)$code
+tasc1 <- tasc0[grep("CONTROL", row.names(tasc0)), ]
+
+atasc0 <- HSD.test(asc, "code")
+
+### KW -----------------
+# kw0 <- agricolae::kruskal(persi$symptom, persi$code)
+
+### Shapiro test residuals -----------
+sh0 <- shapiro.test(asc$residuals)
+```
+
+```{r tbl-tasc1-p}
+#| tbl-cap: Differences between control and each strain. 
+
+kable(tasc1)
+
+```
+
+```{r fig-tasc0-p}
+#| fig-cap: Mean pathogenicity of each strain. Different letters for significance (alpha = 0.05).
+
+plot(atasc0, las = 2)
+
+# plot(kw0, las = 2)
+
+```
+
+
+# {{< pagebreak >}}
+
+```{r}
+#| eval: !expr file.exists("rmd/ch_reproducibility.qmd")
+#| child: "rmd/ch_reproducibility.qmd"
+
+```
+
+
+
+
+<!-- ## Bibliography -->

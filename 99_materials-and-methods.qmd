@@ -1,0 +1,163 @@
+---
+title: "Materials and methods"
+author: 
+  - name: Alfonso Garmendia
+    email: algarsal@upv.es
+    affiliation: Instituto Agroforestal Mediterráneo. Departamento de Ecosistemas Agroforestales. Universitat Politècnica de València.
+bibliography: biblio/packages.bib
+cls: biblio/peerj.cls
+# nocite: '@*'
+title-block-banner: true
+date: last-modified
+date-format: iso
+lang: es-ES
+language: 
+  title-block-published: "Última modificación"
+code-fold: true
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-title: Índice
+    embed-resources: true
+    self-contained-math: true
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+```{r function to run rmd scripts}
+runAllChunks <- function(rmd, envir=globalenv()) {
+  tempR <- tempfile(tmpdir = ".", fileext = ".R")
+  on.exit(unlink(tempR))
+  knitr::purl(rmd, output = tempR)
+  sys.source(tempR, envir = envir)
+}
+
+```
+
+```{r run all chunks of all rmd files, eval=FALSE}
+### Only if not run before. To create the packages.csv
+rmd.files <- dir(pattern = ".Rmd")
+rmd.files <- 
+  rmd.files[-which(rmd.files == "10_materials-and-methods.Rmd")]
+lapply(rmd.files, runAllChunks)
+### or if errors
+# rmd.files
+runAllChunks(rmd.files[3])
+```
+
+```{r biblio, message=FALSE}
+
+#### create bib for citations --------------------------------------------
+if (!file.exists('biblio/packages.csv')) 
+  stop("File 'packages.csv' is missing in folder 'biblio'. Please create it before kniting this document.")
+
+if (file.exists("biblio/packages.csv")) {
+  packages <- read.csv("biblio/packages.csv")
+  packages <- unique(packages$x)
+  packages <- packages[order(packages)]
+}
+
+knitr::write_bib(c(.packages(), packages), 'biblio/packages.bib')
+
+#### Add RStudio (by hand) ----------------------------------------------
+## ACTUALIZE WITH: 
+## https://support.rstudio.com/hc/en-us/articles/206212048-Citing-RStudio
+### copy paste from any of these, adding key:
+# RStudio.Version()$citation
+# rstudioapi::versionInfo()$citation
+
+rstudio <- bibentry( # creates entry
+   bibtype = "Manual",
+   key = "R-rstudio",
+   title = "RStudio: Integrated Development Environment for R",
+   author = person("RStudio Team"),
+   organization = "RStudio, PBC",
+   address = "Boston, MA",
+   year = format(Sys.Date(), "%Y"),
+   url = "http://www.rstudio.com/")
+
+### add entry to packages.bib
+bibtex::write.bib(entry = rstudio, file = "biblio/packages.bib", append = TRUE)
+
+#### Description of all used packages ----------------------------------
+
+biblio.descriptions <- character()
+for (i in packages) {
+  biblio.descriptions <- 
+    paste(biblio.descriptions, "-", i, "package ", 
+          paste0("[@R-",i, "]"),
+          gsub('\n\\s+', ' ', 
+               packageDescription(pkg = i, fields = 'Description')),
+          "\n\n")
+  }
+
+rm(i, rstudio)
+
+
+```
+
+```{r, message=FALSE}
+### Include fisher and holm references if fisher function is used.
+
+if (length(dir("R", pattern = "fisher")) > 0) {
+  #### Add Holm by hand --------------------------------------------------
+article <- bibentry( # creates entry
+   bibtype = "article",
+   key = "holm1979simple",
+   title = "A simple sequentially rejective multiple test procedure",
+   author = person("Holm, Sture"),
+   journal = "Scandinavian journal of statistics",
+  pages = "65-70",
+  year = 1979,
+  publisher = "JSTOR")
+
+### add entry to packages.bib
+bibtex::write.bib(entry = article, file = "biblio/packages.bib", append = TRUE)
+
+#### Add Fisher by hand --------------------------------------------------
+
+article <- bibentry( # creates entry
+   bibtype = "article",
+   key = "fisher1934statistical",
+   title = "Statistical methods for research workers",
+   author = person("Fisher, Ronald Aylmer et al."),
+   journal = "Statistical methods for research workers",
+  number = "5th Ed",
+  year = 1934,
+  publisher = "Oliver and Boyd, Edinburgh and London")
+
+### add entry to packages.bib
+bibtex::write.bib(entry = article, file = "biblio/packages.bib", append = TRUE)
+
+### Add text, and citation to biblio descriptions (MyM) -----------------
+
+biblio.descriptions <- paste(
+  biblio.descriptions, "\n\n",
+  "Statistical methods used may include:", "\n\n",
+  "- Fisher test [@fisher1934statistical] for categorical data comparison.", 
+  "and Holm test [@holm1979simple] for post hoc the Fisher test results."
+)
+}
+```
+
+## Materials and methods
+
+Statistical analyses tables and figures were made using R language [@R-base] with RStudio gui [@R-rstudio]. Other packages used were:
+
+`r biblio.descriptions`
+
+
+# {{< pagebreak >}}
+
+{{< include rmd/ch_reproducibility.qmd >}}
+
+&nbsp;
+
+## References
+
+

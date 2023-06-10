@@ -1,0 +1,142 @@
+---
+title: Plots
+subtitle: "Nguyen"
+# author:
+# - affiliation: Instituto Agroforestal Mediterráneo. Departamento de Ecosistemas Agroforestales.
+#     Universitat Politècnica de València.
+#   email: algarsal@upv.es
+#   name: Alfonso Garmendia
+title-block-banner: true
+date: last-modified
+date-format: iso
+lang: en-EN
+language: 
+  title-block-published: "Last modified"
+code-fold: true
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: body
+    toc-title: Table of contents
+    embed-resources: true
+    self-contained-math: true
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(dplyr)
+
+```
+
+## Data
+
+```{r import_data}
+# dir("data")
+load("data/clean-data.Rdata")
+rm(pathog, samu)
+```
+
+Data are imported from the file *"data/clean-data.Rdata"*. It was created running the script "*01_data-survey-clean-export.qmd*" and has several dataframes: *`r ls()`*. 
+
+See the document [01_data-survey-clean-export.html](01_data-survey-clean-export.html) for a detailed description of the data creation and legend. 
+
+See the document [02_EDA](02_EDA.html) for a quick survey of the data. 
+
+In the document [04n_model-diagram-Nguyen.html](04n_model-diagram-Nguyen.html) there is a diagram of the model possible relationships to test. 
+
+```{r}
+### Order levels of code to 
+### put "CONTROL" or "none" as the first level
+# levels(nguy$location)
+nguy$code <- relevel(nguy$code, "CONTROL")
+
+```
+
+All factor variables were reordered so control observations are in the first place. 
+
+## Best model
+
+```{r}
+call <- "symptom ~ code * inoc_part"
+```
+
+After comparing a set of different models, the best fitted model is (see [05n_models-comparison-Nguyen.html](05n_models-comparison-Nguyen.html)):
+
+- `r call`
+
+For all strains but AAPVC5 the effect in young leaves is stronger than in adult leaves. The effect is different for each strain (see @fig-ssi).
+
+```{r fig-ssi}
+#| fig-cap: Effect of the strain and the age of the inoculated leaves (inoculated_in) on the Alternaria disease symptoms. Error bars stand for standard deviation. Asterics denote significant differences with the control experiment (alpha = 0.05). 
+#| fig-width: 9
+#| column: screen
+
+### Analysis -------------
+aad <- aov(symptom ~ code, 
+  data = nguy[nguy$inoc_part == "ADULT LEAVES", ])
+ayo <- aov(symptom ~ code, 
+  data = nguy[nguy$inoc_part == "YOUNG LEAVES", ])
+
+aadt <- as.data.frame(TukeyHSD(aad)$code)
+aadt <- aadt[grep("CONTROL", row.names(aadt)), ]
+aadt$inoc_part <- "ADULT LEAVES"
+aadt$sig <- ""
+aadt$sig[aadt$`p adj` < 0.05] <- "*"
+
+ayot <- as.data.frame(TukeyHSD(ayo)$code)
+ayot <- ayot[grep("CONTROL", row.names(ayot)), ]
+ayot$inoc_part <- "YOUNG LEAVES"
+ayot$sig <- ""
+ayot$sig[ayot$`p adj` < 0.05] <- "*"
+scontrol <- aadt[1, ]
+scontrol$sig <- ""
+s <- rbind(scontrol, aadt)
+s <- rbind(s, scontrol)
+s <- rbind(s, ayot)
+s$code <- rep(levels(nguy$code), 2)
+sig <- s[c("code", "inoc_part", "sig")]
+
+### Data for plot -------------
+d <- nguy %>%
+  group_by(code, inoc_part) %>%
+  summarise_at(vars(symptom), 
+    list(mean = mean, sd = sd)) %>% 
+  as.data.frame()
+
+### plot ----------------------
+pd <- position_dodge(0.5)
+ggplot(d, aes(x = code, y = mean, 
+  color = inoc_part)) + 
+  geom_errorbar(
+    aes(ymin = mean - sd, ymax = mean + sd), 
+    width = .3, position = pd) +
+  geom_point(size = 2, position = pd) +
+  geom_text(data = sig, position = pd,
+    size = 8,
+    aes(y = 4.5, x = code,
+      color = inoc_part, label = sig)) +
+  labs(x = "Strain", y = "symptom level mean", 
+    color = "inoculated in") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, 
+    vjust = 1, hjust = 1))  
+
+
+```
+
+It could be interesting to replicate the graph for variety, sample, location and province to see if it is easier to understand. 
+
+
+# {{< pagebreak >}}
+
+```{r}
+#| eval: !expr file.exists("rmd/ch_reproducibility.qmd")
+#| child: "rmd/ch_reproducibility.qmd"
+
+```
+
+
+
+
+<!-- ## Bibliography -->

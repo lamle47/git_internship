@@ -1,0 +1,391 @@
+---
+title: Pathogenicity models
+subtitle: "Nguyen"
+# author:
+# - affiliation: Instituto Agroforestal Mediterráneo. Departamento de Ecosistemas Agroforestales.
+#     Universitat Politècnica de València.
+#   email: algarsal@upv.es
+#   name: Alfonso Garmendia
+title-block-banner: true
+date: last-modified
+date-format: iso
+lang: en-EN
+language: 
+  title-block-published: "Last modified"
+code-fold: true
+format:
+  html:
+    toc: true
+    toc-depth: 6
+    toc-location: body
+    toc-title: Table of contents
+    embed-resources: true
+    self-contained-math: true
+---
+
+```{r setup, include=FALSE}
+library(stringr)
+library(AICcmodavg)
+library(dplyr)
+library(kableExtra)
+library(MASS)
+# library(knitr)
+```
+
+## Import data
+
+```{r import_data}
+# dir("data")
+load("data/clean-data.Rdata")
+rm(pathog, samu)
+```
+
+Data are imported from the file *"data/clean-data.Rdata"*. It was created running the script "*01_data-survey-clean-export.qmd*" and has several dataframes: *`r ls()`*. 
+
+See the document [01_data-survey-clean-export.html](01_data-survey-clean-export.html) for a detailed description of the data creation and legend. 
+
+See the document [02_EDA](02_EDA.html) for a quick survey of the data. 
+
+In the document [04n_model-diagram-Nguyen.html](04n_model-diagram-Nguyen.html) there is a diagram of the model possible relationships to test. 
+
+```{r}
+### Order levels of code to 
+### put "CONTROL" or "none" as the first level
+# levels(nguy$location)
+nguy$code <- relevel(nguy$code, "CONTROL")
+nguy$host <- relevel(nguy$host, "none")
+nguy$location <- relevel(nguy$location, "none")
+nguy$province <- relevel(nguy$province, "none")
+
+```
+
+All factor variables were reordered so control observations are in the first place. 
+
+## linear models effects
+
+```{r calls}
+#### Independent variables ---------
+iv0 <- c("code", "host", 
+  "variety", "sample", "location", "province", 
+  "inoc_part", "batch", "days")
+
+### manual calls -----------
+# calls <- c(
+#   "symptom ~ code",
+#   "symptom ~ host",
+#   "symptom ~ variety",
+#   "symptom ~ sample",
+#   "symptom ~ location",
+#   "symptom ~ province",
+#   "symptom ~ inoc_part",
+#   "symptom ~ days",
+#   "symptom ~ code + province",
+#   "symptom ~ code + sample",
+#   "symptom ~ code + variety",
+#   "symptom ~ variety + province",
+#   "symptom ~ variety + sample",
+#   "symptom ~ sample + province",
+#   "symptom ~ code + province + inoc_part",
+#   "symptom ~ code + sample + inoc_part",
+#   "symptom ~ code + variety + inoc_part",
+#   "symptom ~ code + variety + sample",
+#   "symptom ~ variety + province + inoc_part",
+#   "symptom ~ variety + sample + inoc_part",
+#   "symptom ~ sample + province + inoc_part",
+#   "symptom ~ code + province + inoc_part + days",
+#   "symptom ~ code + sample + inoc_part + days",
+#   "symptom ~ code + sample + inoc_part + province",
+#   "symptom ~ code + variety + inoc_part + province",
+#   "symptom ~ code + sample + variety + days",
+#   "symptom ~ variety + province + inoc_part + days",
+#   "symptom ~ variety + sample + inoc_part + days",
+#   "symptom ~ sample + province + inoc_part + days",
+#   "symptom ~ code + variety + sample + inoc_part + days",
+#   "symptom ~ province + variety + sample + inoc_part + days",
+#   "symptom ~ code + province + sample + inoc_part + days",
+#   "symptom ~ code + province + variety + sample + inoc_part + days")
+
+### Combinations of variables -------
+iv <- iv0
+for (i in 2:3) {
+  iv <- c(iv, 
+    apply(arrangements::combinations(iv0, i, 
+      replace = FALSE), 1, 
+      paste , collapse = " + " ))
+}
+
+### Create calls ------------
+calls <- paste("symptom ~", iv)
+
+### Add interactions ---------------
+calls <- c(calls, gsub("\\+", "\\*", calls[grep("\\+", calls)]))
+
+```
+
+```{r }
+models <- list()
+# i <- 1
+for (i in 1:length(calls)) {
+  n <- paste0("lm", str_pad(i, 2, pad = "0"))
+  models[[n]] <- lm(formula(calls[i]), data = nguy)
+}
+
+```
+
+
+```{r tbl-lm}
+#| tbl-cap: Comparison of linear models by their R², AIC and BIC. Also the p.value of the normality of residuals Shapiro test is shown.
+#| warning: false
+
+### aic y bic -----------
+aic <- data.frame(aictab(cand.set = models,
+  modnames = names(models)))
+bic <- data.frame(bictab(cand.set = models,
+  modnames = names(models)))
+
+### Shapiro, R2 y call -------------
+model_call <- data.frame(Modnames = character(), 
+  shapiro = numeric(), R2 = numeric(),
+  call = character())
+
+# i <- names(models)[1]
+for (i in 1:length(calls)){
+  sha <- 
+    shapiro.test(models[[i]]$residuals)$p.value
+  R2 <- summary(models[[i]])$adj.r.squared
+  call <- calls[i]
+  new_row <- data.frame(Modnames = names(models)[i], 
+    shapiro = sha, adj.R2 = R2,
+    call = call)
+  model_call <- rbind(model_call, new_row)
+}
+### Juntar tabla ------------
+model_scores <- left_join(model_call[1], 
+  aic[1:3], by = "Modnames")
+model_scores <- left_join(model_scores, 
+  bic[c(1,3)], by = "Modnames")
+model_scores <- left_join(model_scores, 
+  model_call, by = "Modnames")
+
+### Tabla ------
+cn <- which(names(model_scores) == 'call')
+lb <- which(model_scores$BIC == min(model_scores$BIC))
+model_scores %>% 
+  # format_cells(2, 2, "bold") %>%
+  kbl(digits = 3) %>% 
+kable_paper() %>% 
+  column_spec(cn, width_min = "15cm") %>% 
+  row_spec(lb, bold = TRUE)
+
+```
+
+\
+
+Comparing the different possible models likelihood (AIC and BIC) and R² (see @tbl-lm). There are several models equivalents: 
+
+- `r paste(model_scores$call[lb], collapse = " \n\n - ")`. 
+
+It seems the variables *province*, *sample* and *variety* have simmilar information. 
+
+It is good that *batch* and  *days*  do not improve the model. It shouldn't. 
+
+The model is well adjusted (see R²), but residuals are not normally distributed. They cannot be with a scale of from 0 to 4. 
+
+## Generalized linear models negative binomial distribution
+
+```{r cache=TRUE}
+#| warning: false
+# library(MASS)
+
+modelsnb <- list()
+for (i in 1:length(calls)) {
+  skip_to_next <- FALSE
+  tryCatch(glm.nb(formula(calls[i]), data = nguy), 
+    error = function(e) { skip_to_next <<- TRUE})
+  if(skip_to_next) { next }   
+  n <- paste0("nb", str_pad(i, 2, pad = "0"))
+  modelsnb[[n]] <- glm.nb(formula(calls[i]), data = nguy)
+}
+
+```
+
+```{r tbl-nb}
+#| tbl-cap: Comparison of generalized linear models using negative binomial distribution of errors, by their AIC and BIC. Also the p.value of the normality of residuals Shapiro test is shown.
+#| warning: false
+
+### aic and bic -----------
+aic <- data.frame(aictab(cand.set = modelsnb,
+  modnames = names(modelsnb)))
+bic <- data.frame(bictab(cand.set = modelsnb,
+  modnames = names(modelsnb)))
+
+### Shapiro, R2 y call -------------
+model_call <- data.frame(Modnames = character(), 
+  shapiro = numeric(), # R2 = numeric(),
+  call = character())
+
+# i <- names(modelsnb)[1]
+for (i in 1:length(modelsnb)){
+  sha <- 
+    shapiro.test(modelsnb[[i]]$residuals)$p.value
+  # R2 <- summary(modelsnb[[i]])$adj.r.squared
+  call <- calls[i]
+  new_row <- data.frame(Modnames = names(modelsnb)[i], 
+    shapiro = sha, # adj.R2 = R2,
+    call = call)
+  model_call <- rbind(model_call, new_row)
+}
+
+### Juntar tabla ------------
+model_scores <- left_join(model_call[1], 
+  aic[1:3], by = "Modnames")
+model_scores <- left_join(model_scores, 
+  bic[c(1,3)], by = "Modnames")
+model_scores <- left_join(model_scores, 
+  model_call, by = "Modnames")
+
+### Tabla ------
+cn <- which(names(model_scores) == 'call')
+lbnb <- which(model_scores$BIC == min(model_scores$BIC))
+model_scores %>% 
+  # format_cells(2, 2, "bold") %>%
+  kbl(digits = 3) %>% 
+kable_paper() %>% 
+  column_spec(cn, width_min = "15cm") %>% 
+  row_spec(lbnb, bold = TRUE)
+
+```
+
+\
+
+Comparing the ame models with negative binomial distribution of errors we see that the best model is a different one than for linear models (see @tbl-nb): 
+
+- *`r model_scores$call[lbnb]`*. 
+
+Still need *days*. Only changes *sample* by *province*.
+
+The final residuals are not normally distributed. 
+
+## Generalized linear models binomial distribution
+
+Binomial distribution is used for presence - absence data. It is a logistic regression. 
+
+```{r }
+#| warning: false
+
+nguy$symptomTF <- nguy$symptom > 0
+callsbi <- sub("symptom", "symptomTF", calls)
+
+modelsbi <- list()
+
+for (i in 1:length(calls)) {
+  n <- paste0("bi", str_pad(i, 2, pad = "0"))
+  modelsbi[[n]] <- glm(formula(callsbi[i]), data = nguy, family = binomial)
+}
+
+```
+
+```{r tbl-bi}
+#| tbl-cap: Comparison of binomial generalized linear models by their AIC and BIC. Also the p.value of the normality of residuals Shapiro test is shown.
+#| warning: false
+
+### aic y bic -----------
+aic <- data.frame(aictab(cand.set = modelsbi,
+  modnames = names(modelsbi)))
+bic <- data.frame(bictab(cand.set = modelsbi,
+  modnames = names(modelsbi)))
+
+### Shapiro, R2 y call -------------
+model_call <- data.frame(Modnames = character(), 
+  shapiro = numeric(), #R2 = numeric(),
+  call = character())
+
+# i <- names(modelsbi)[1]
+for (i in 1:length(modelsbi)){
+  sha <- 
+    shapiro.test(modelsbi[[i]]$residuals)$p.value
+  # R2 <- summary(modelsbi[[i]])$adj.r.squared
+  call <- callsbi[i]
+  new_row <- data.frame(Modnames = names(modelsbi)[i], 
+    shapiro = sha, #adj.R2 = R2,
+    call = call)
+  model_call <- rbind(model_call, new_row)
+}
+
+### Juntar tabla ------------
+model_scores <- left_join(model_call[1], 
+  aic[1:3], by = "Modnames")
+model_scores <- left_join(model_scores, 
+  bic[c(1,3)], by = "Modnames")
+model_scores <- left_join(model_scores, 
+  model_call, by = "Modnames")
+
+### Tabla ------
+cn <- which(names(model_scores) == 'call')
+lbbi <- which(model_scores$BIC == min(model_scores$BIC))
+model_scores %>% 
+  # format_cells(2, 2, "bold") %>%
+  kbl(digits = 3) %>% 
+kable_paper() %>% 
+  column_spec(cn, width_min = "15cm") %>% 
+  row_spec(lbbi, bold = TRUE)
+
+```
+
+\
+
+Comparing the different possible models likelihood (AIC and BIC, see @tbl-bi) we can see the best model is *`r model_scores$call[lbbi]`*. 
+
+It is the same call than for the linear model.  
+
+## Models details
+
+### Linear model
+
+```{r}
+# knitr::knit_exit()
+```
+
+```{r}
+#| results: markup
+# summary(models[[lb]])
+anova(models[[lb[1]]])
+plot(models[[lb[1]]], which = 2)
+```
+
+### negative binomial
+
+```{r}
+# summary(modelsnb[[lbnb]])
+anova(modelsnb[[lbnb]])
+plot(modelsnb[[lbnb]], which = 2)
+```
+
+### binomial
+
+```{r}
+# summary(modelsbi[[lbbi]])
+anova(modelsbi[[lbbi]])
+plot(modelsbi[[lbbi]], which = 2)
+```
+
+
+
+
+
+
+
+
+
+# {{< pagebreak >}}
+
+```{r}
+#| eval: !expr file.exists("rmd/ch_reproducibility.qmd")
+#| child: "rmd/ch_reproducibility.qmd"
+
+```
+
+
+
+
+<!-- ## Bibliography -->
