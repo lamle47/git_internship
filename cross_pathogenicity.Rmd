@@ -19,8 +19,10 @@ library(xtable)
 Three previously isolated pathogenic Alternaria a. strains of Mandarin, Carob, and Persimmon from different locations were used in this study.
 
 ```{r}
-samu
-pathog
+load("data/clean-data.Rdata")
+
+# samu
+# pathog
 
 ```
 
