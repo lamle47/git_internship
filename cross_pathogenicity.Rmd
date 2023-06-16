@@ -17,7 +17,6 @@ library(knitr)
 library(kableExtra)
 library(xlsx)
 library(PMCMRplus)
-install.packages("PMCMRplus")
 ```
 
 ## Load the data
@@ -132,13 +131,13 @@ theme_bw() +
 #### Add an Error bar to the plot
 ggplot(df4) +
   geom_bar(stat = "identity", aes(y = Mean, x = code, fill = species), width = 0.5, position = "dodge") +
-  geom_errorbar(aes(ymin = Mean - sd, ymax = Mean + sd, x = code), width = 0.5, position = position_dodge(width = 0.5)) +  # Error bars
-  scale_fill_manual(values = c("red", "black")) +  # Set species colors to green and brown
+  geom_errorbar(aes(ymin = Mean - sd, ymax = Mean + sd, x = code), width = 0.5, position = position_dodge(width = 0.5)) +
+  scale_fill_manual(values = c("red", "black")) +
   theme_bw() +
   ggtitle("Cross Pathogenicity on Young Leaves") +
   labs(x = "Host Strain", y = "Mean Severity Index", fill = "Infected Species") +
   geom_text(
-    aes(x = 1:9, y = Mean + sd, label = letter0),
+    aes(y = Mean + sd, x = code, label = letter0),
     position = position_dodge(width = 0.5),
     vjust = -0.5, size = 5, hjust = 0.5, color = "black"
   ) +
@@ -196,11 +195,10 @@ ggplot(Per0) +
 *For Persimmon, all the strains tested including control showered pathogenicity*
 
 ```{r}
-library(PMCMRplus)
+library(agricolae)
 ##Select and Analyse for only infected strain of PERSIMMON and control
-Carob <- samu%>% filter(species=="CAROB")
-Car <- Carob[Carob$code %in% c("CAROB1", "CAROB_S1","CAROB_S2", "CAROB_S3", "CAROB_S4", "CAROB_S5"), ]
-Cr<- kruskal(Car$symptom, Car$code, console = TRUE,group = TRUE)
+carob <- samu%>% filter(species=="CAROB")
+car<- kruskal(carob$symptom, carob$code, console = TRUE,group = TRUE)
 Clet <- result$groups$groups
 
 library(coin)
