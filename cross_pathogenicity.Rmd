@@ -13,9 +13,15 @@ library(writexl)
 library(readxl)
 library(agricolae)
 library(xtable)
+library(knitr)
+library(kableExtra)
+library(xlsx)
+library(PMCMRplus)
+install.packages("PMCMRplus")
 ```
 
 ## Load the data
+
 Three previously isolated pathogenic Alternaria a. strains of Mandarin, Carob, and Persimmon from different locations were used in this study.
 
 ```{r}
@@ -26,18 +32,22 @@ load("data/clean-data.Rdata")
 
 ```
 
-##Table 1: Description of Alternaria spp. used in the study. 
-**CODE:	Identification code of the strain; *HOST:	Common name of the host species; *VARIETY:	Name of the variety; *LOCATION:	Municipality collected from; *PROVINCE	Province of the municipality; and *ORCHARD:	Name of the orchard**
+##Table 1: Description of Alternaria spp. used in the study. \*\*CODE: Identification code of the strain; *HOST: Common name of the host species;* VARIETY: Name of the variety; *LOCATION: Municipality collected from;* PROVINCE Province of the municipality; and \*ORCHARD: Name of the orchard\*\*
 
 ```{r}
 Table1 <- pathog[, c(1, 3, 10, 11, 13, 14)]
 
+excel_file <- "Table1.xlsx"  # Specify the desired file name and path
+
+write.xlsx(Table1, file = excel_file, row.names = FALSE)
+
+
 ```
 
-***The result comprise analysis for 33 strain for which, some show no symptom. Analyzing all the data will give major statistical problem. So, we first summarize the the result and create a table showing the mean and standard deviation for all the strains tested.** 
+\***The result comprise analysis for 33 strain for which, some show no symptom. Analyzing all the data will give major statistical problem. So, we first summarize the the result and create a table showing the mean and standard deviation for all the strains tested.**
 
-##Table 2: Result sumarry of mean and standard deviation
-**Results covers all the 33 Alternarian a. strains and the crops on which they were tested.**  
+##Table 2: Result sumarry of mean and standard deviation **Results covers all the 33 Alternarian a. strains and the crops on which they were tested.**
+
 ```{r}
 #Summarize the result and create a table 
 Result0 <- samu%>% group_by(code, species)%>%
@@ -47,12 +57,12 @@ Result0 <- samu%>% group_by(code, species)%>%
             min=min(symptom))    
 ```
 
-##Analysis by inoculum for only pathogenic trains 
+##Analysis For pathogenicity on CLEMENVILLA.MANDARIN
 
-Result sumarry of mean and standard deviation
+*Select, Analyse and plot for only those showing pathogenic on CLEMENVILLA.MANDARIN and control*
 
 ```{r}
-##Select and Analyse for CLEMENVILLA.MANDARIN
+##Select and Analyse for only infected strain of CLEMENVILLA.MANDARIN and control
 df1 <- samu%>% filter(species=="CLEMENVILLA.MANDARIN")
 df <- df1[df1$code %in% c("CAROB_S1", "CAROB_S4", "CAROB_S5", "CAROB1", "CONTROL"), ]
 a<- kruskal(df$symptom, df$code, console = TRUE,group = TRUE)
@@ -64,14 +74,153 @@ df2 <- df%>% group_by(species, code)%>%
             max= max(symptom), 
             min=min(symptom))      
  
-ggplot(df2)+geom_bar(stat="identity", aes(y=Mean, x=code, fill=species), width=0.5, 
-                      position = "dodge")+
-theme_bw()+ggtitle("Young_leaves")+xlab("Mean Severity Index")+ylab("Pathogen Strains")+
+ggplot(df2)+geom_bar(stat="identity", aes(y=Mean, x=code, color =species), width=0.5, position = "dodge")+ 
+theme_bw()+ggtitle("Cross_Pathogenicity on Young_Leaves")+
+  labs(x = "host strain", y ="Mean Severity Index", color = "infected species")+
    geom_text(
      aes(x =1:5, y = Mean, label = letter),
-     position = position_dodge(width = 1),
-     vjust = -0.5, size = 5
-   )
+     position = position_dodge(width = 0.5),
+     vjust = -0.5, size = 3, hjust = 2,
+   )+
+theme_bw() +
+  theme(axis.text.x = element_text(angle = 10))
+
+
+#### Add an Error bar to the plot
+ggplot(df2) +
+  geom_bar(stat = "identity", aes(y = Mean, x = code, fill = species), width = 0.5, position = "dodge") +
+  geom_errorbar(aes(ymin = Mean - sd, ymax = Mean + sd, x = code), width = 0.5, position = position_dodge(width = 0.5)) +  # Error bars
+  scale_fill_manual(values = c("red", "black")) +  # Set species colors to green and brown
+  theme_bw() +
+  ggtitle("Cross Pathogenicity on Young Leaves") +
+  labs(x = "host strain", y = "Mean Severity Index", fill = "infected species") +
+  geom_text(
+    aes(x = 1:5, y = Mean + sd, label = letter),
+    position = position_dodge(width = 0.5),
+    vjust = -0.5, size = 5, hjust = 0.5, color = "black"
+  ) +
+  theme(axis.text.x = element_text(angle = 10))
 
 ```
 
+*Analyse and plot for all the strains tested on CLEMENVILLA.MANDARIN*
+
+```{r}
+##Select and Analyse for all of all the strains CLEMENVILLA.MANDARIN
+df3 <- samu%>% filter(species=="CLEMENVILLA.MANDARIN")
+b<- kruskal(df3$symptom, df3$code, console = TRUE,group = TRUE)
+letter0 <- b$groups$groups
+
+df4 <- df3%>% group_by(species, code)%>%
+  summarise(Mean=mean(symptom),
+            sd=sd(symptom),
+            max= max(symptom), 
+            min=min(symptom))      
+ 
+ggplot(df4)+geom_bar(stat="identity", aes(y=Mean, x=code, color =species), width=0.5, 
+                      position = "dodge")+
+theme_bw()+ggtitle("Cross_Pathogenicity on Young_Leaves")+
+  labs(x = "Host Strain", y ="Mean Severity Index", color = "Infected Species")+
+   geom_text(
+     aes(x =1:9, y = Mean + sd, label = letter0),
+     position = position_dodge(width = 0.001),
+     vjust = -0.5, size = 3, hjust = 2,
+   )+
+theme_bw() +
+  theme(axis.text.x = element_text(angle = 10))
+
+#### Add an Error bar to the plot
+ggplot(df4) +
+  geom_bar(stat = "identity", aes(y = Mean, x = code, fill = species), width = 0.5, position = "dodge") +
+  geom_errorbar(aes(ymin = Mean - sd, ymax = Mean + sd, x = code), width = 0.5, position = position_dodge(width = 0.5)) +  # Error bars
+  scale_fill_manual(values = c("red", "black")) +  # Set species colors to green and brown
+  theme_bw() +
+  ggtitle("Cross Pathogenicity on Young Leaves") +
+  labs(x = "Host Strain", y = "Mean Severity Index", fill = "Infected Species") +
+  geom_text(
+    aes(x = 1:9, y = Mean + sd, label = letter0),
+    position = position_dodge(width = 0.5),
+    vjust = -0.5, size = 5, hjust = 0.5, color = "black"
+  ) +
+  theme(axis.text.x = element_text(angle = 10))
+
+```
+
+##Analysis For pathogenicity on PERSIMMON
+
+*For Persimmon, all the strains tested including control showered pathogenicity*
+
+```{r}
+##Select and Analyse for only infected strain of PERSIMMON and control
+Per <- samu%>% filter(species=="PERSIMMON")
+P<- kruskal(Per$symptom, Per$code, console = TRUE,group = TRUE)
+Plet <- P$groups$groups
+
+Per0 <- Per%>% group_by(species, code)%>%
+  summarise(Mean=mean(symptom),
+            sd=sd(symptom),
+            max= max(symptom), 
+            min=min(symptom))      
+
+ggplot(Per0)+geom_bar(stat="identity", aes(y=Mean, x=code, color =species), width=0.5, 
+                      position = "dodge")+
+theme_bw()+ggtitle("Cross_Pathogenicity on Young_Leaves")+
+  labs(x = "Host Strain", y ="Mean Severity Index", color = "Infected Species")+
+   geom_text(
+     aes(x =1:12, y = Mean, label = Plet),
+     position = position_dodge(width = 0.001),
+     vjust = -0.5, size = 3, hjust = 2,
+   )+
+theme_bw() +
+  theme(axis.text.x = element_text(angle = 10))
+
+#### Add an Error bar to the plot
+ggplot(Per0) +
+  geom_bar(stat = "identity", aes(y = Mean, x = code, fill = species), width = 0.5, position = "dodge") +
+  geom_errorbar(aes(ymin = Mean - sd, ymax = Mean + sd, x = code), width = 0.2, position = position_dodge(width = 0.1)) +  # Error bars
+  scale_fill_manual(values = c("blue", "black")) +  # Set species colors to green and brown
+  theme_bw() +
+  ggtitle("Cross_Pathogenicity on Young_Leaves") +
+  labs(x = "Host Strain", y = "Mean Severity Index", fill = "Infected Species") +
+  geom_text(
+    aes(x = 1:12, y = Mean + sd, label = Plet),
+    position = position_dodge(width = 0.5),
+    vjust = -0.5, size = 5, hjust = 0.5, color = "black"
+  ) +
+  theme(axis.text.x = element_text(angle = 10))
+
+```
+
+##Analysis For pathogenicity on CAROB
+
+*For Persimmon, all the strains tested including control showered pathogenicity*
+
+```{r}
+library(PMCMRplus)
+##Select and Analyse for only infected strain of PERSIMMON and control
+Carob <- samu%>% filter(species=="CAROB")
+Car <- Carob[Carob$code %in% c("CAROB1", "CAROB_S1","CAROB_S2", "CAROB_S3", "CAROB_S4", "CAROB_S5"), ]
+Cr<- kruskal(Car$symptom, Car$code, console = TRUE,group = TRUE)
+Clet <- result$groups$groups
+
+library(coin)
+
+# Perform Kruskal-Wallis test with ties
+result <- kruskal_test(Car$symptom ~ Car$code)
+
+# Perform post hoc multiple comparisons
+posthoc <- posthoc.kruskal.nemenyi.test(Car$symptom, Car$code)
+
+# Get the letters of significance
+n <- letters(posthoc$p.value < 0.05)
+
+# View the letters of significance
+print(letters)
+
+Car0 <- Car%>% group_by(species, code)%>%
+  summarise(Mean=mean(symptom),
+            sd=sd(symptom),
+            max= max(symptom), 
+            min=min(symptom))    
+
+```
