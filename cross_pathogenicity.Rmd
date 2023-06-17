@@ -17,6 +17,7 @@ library(knitr)
 library(kableExtra)
 library(xlsx)
 library(PMCMRplus)
+library(PMCMRplus)
 ```
 
 ## Load the data
@@ -88,7 +89,7 @@ theme_bw() +
 #### Add an Error bar to the plot
 ggplot(df2) +
   geom_bar(stat = "identity", aes(y = Mean, x = code, fill = species), width = 0.5, position = "dodge") +
-  geom_errorbar(aes(ymin = Mean - sd, ymax = Mean + sd, x = code), width = 0.5, position = position_dodge(width = 0.5)) +  # Error bars
+  geom_errorbar(aes(ymin = pmax(Mean - sd, 0), ymax = Mean + sd, x = code), width = 0.5, size = 0.8, position = position_dodge(width = 0.5)) +  # Error bars
   scale_fill_manual(values = c("red", "black")) +  # Set species colors to green and brown
   theme_bw() +
   ggtitle("Cross Pathogenicity on Young Leaves") +
@@ -131,7 +132,7 @@ theme_bw() +
 #### Add an Error bar to the plot
 ggplot(df4) +
   geom_bar(stat = "identity", aes(y = Mean, x = code, fill = species), width = 0.5, position = "dodge") +
-  geom_errorbar(aes(ymin = Mean - sd, ymax = Mean + sd, x = code), width = 0.5, position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = pmax(Mean - sd, 0), ymax = Mean + sd, x = code), width = 0.5, size = 0.8, position = position_dodge(width = 0.5)) +
   scale_fill_manual(values = c("red", "black")) +
   theme_bw() +
   ggtitle("Cross Pathogenicity on Young Leaves") +
@@ -195,11 +196,17 @@ ggplot(Per0) +
 *For Persimmon, all the strains tested including control showered pathogenicity*
 
 ```{r}
-library(agricolae)
+library(rcompanion)
 ##Select and Analyse for only infected strain of PERSIMMON and control
 carob <- samu%>% filter(species=="CAROB")
-car<- kruskal(carob$symptom, carob$code, console = TRUE,group = TRUE)
-Clet <- result$groups$groups
+cab<- kruskal.test(carob$symptom, carob$code, console = TRUE,group = TRUE)
+
+Ca0 <- carob[carob$code %in% c("CAROB_S2", "CAROB_S3","CAROB_S1", "CAROB_S4", "CAROB_S5", "CAROB1", "CONTROL"), ]
+
+ca<- kruskal.test(Ca0$symptom, Ca0$code, console = TRUE,group = TRUE)
+
+car_letters <- ca$groups$groups
+
 
 library(coin)
 
